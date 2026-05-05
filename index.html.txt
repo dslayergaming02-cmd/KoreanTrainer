@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Korean Trainer 2.0</title>
+    <!-- Carichiamo la libreria per comporre le sillabe coreane -->
+    <script src="https://unpkg.com/hangul-js@0.2.6/hangul.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; width: 350px; }
+        h1 { color: #333; font-size: 1.2rem; margin-bottom: 20px; }
+        #display { font-size: 80px; font-weight: bold; margin: 20px 0; color: #007bff; min-height: 120px; display: flex; align-items: center; justify-content: center; }
+        input { width: 100%; padding: 12px; font-size: 24px; border: 2px solid #ddd; border-radius: 8px; outline: none; text-align: center; box-sizing: border-box; }
+        input:focus { border-color: #007bff; }
+        .stats { margin-top: 20px; font-size: 0.9rem; color: #666; }
+        .correct { background-color: #d4edda !important; border-color: #28a745 !important; }
+        .level-select { margin-bottom: 15px; width: 100%; padding: 5px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>KOREAN TRAINER 2.0</h1>
+    
+    <select id="level" class="level-select">
+        <option value="1">Livello 1: Sillabe Semplici (CV)</option>
+        <option value="2">Livello 2: Sillabe Complesse (CVC)</option>
+        <option value="3">Livello 3: Parole Comuni / Pronomi</option>
+    </select>
+
+    <div id="display">--</div>
+    
+    <input type="text" id="userInput" placeholder="Scrivi qui..." autocomplete="off">
+    
+    <div class="stats">
+        Punti: <span id="score">0</span> | Rimasti: <span id="timer">Prossimo...</span>
+    </div>
+</div>
+
+<script>
+    const display = document.getElementById('display');
+    const input = document.getElementById('userInput');
+    const scoreDisplay = document.getElementById('score');
+    const levelSelect = document.getElementById('level');
+
+    let currentWord = "";
+    let score = 0;
+
+    const jamo = {
+        iniziali: ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ", "ㅂ", "ㅅ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"],
+        vocali: ["ㅏ", "ㅑ", "ㅓ", "ㅕ", "ㅗ", "ㅛ", "ㅜ", "ㅠ", "ㅡ", "ㅣ"],
+        finali: ["ㄱ", "ㄴ", "ㄹ", "ㅁ", "ㅂ", "ㅇ", "ㅅ"]
+    };
+
+    const parole = ["나", "너", "우리", "그", "그녀", "사람", "물", "불", "우유", "나무", "학생"];
+
+    function generaNuova() {
+        const level = levelSelect.value;
+        let word = "";
+
+        if (level == "1") {
+            // Consonante + Vocale
+            let i = jamo.iniziali[Math.floor(Math.random() * jamo.iniziali.length)];
+            let v = jamo.vocali[Math.floor(Math.random() * jamo.vocali.length)];
+            word = Hangul.assemble([i, v]);
+        } else if (level == "2") {
+            // Consonante + Vocale + Finale (Batchim)
+            let i = jamo.iniziali[Math.floor(Math.random() * jamo.iniziali.length)];
+            let v = jamo.vocali[Math.floor(Math.random() * jamo.vocali.length)];
+            let f = jamo.finali[Math.floor(Math.random() * jamo.finali.length)];
+            word = Hangul.assemble([i, v, f]);
+        } else {
+            // Parola o pronome casuale dalla lista
+            word = parole[Math.floor(Math.random() * parole.length)];
+        }
+
+        currentWord = word;
+        display.innerText = word;
+        input.value = "";
+        input.classList.remove('correct');
+    }
+
+    input.addEventListener('input', () => {
+        if (input.value === currentWord) {
+            score++;
+            scoreDisplay.innerText = score;
+            input.classList.add('correct');
+            // Aspetta un attimo prima di cambiare parola per far vedere il verde
+            setTimeout(generaNuova, 300);
+        }
+    });
+
+    // Inizia il gioco
+    generaNuova();
+</script>
+
+</body>
+</html>
