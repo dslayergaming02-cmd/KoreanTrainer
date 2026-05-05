@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Korean Trainer Master v4</title>
+    <script src="https://unpkg.com/hangul-js@0.2.6/hangul.min.js"></script>
+    <style>
+        :root { --primary: #6c5ce7; --success: #00b894; --bg: #f0f2f5; --text: #2d3436; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; color: var(--text); }
+        .container { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 450px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        #display { font-size: 55px; font-weight: 800; color: var(--primary); margin: 20px 0; min-height: 80px; display: flex; align-items: center; justify-content: center; }
+        #hint { font-size: 1.1rem; color: #b2bec3; margin-bottom: 15px; min-height: 1.2rem; }
+        select, input { width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; border: 2px solid #eee; font-size: 1rem; box-sizing: border-box; transition: 0.3s; }
+        input { font-size: 26px; text-align: center; outline: none; background: #fafafa; }
+        input:focus { border-color: var(--primary); background: white; }
+        input.correct { border-color: var(--success); background: #e6fffb; transform: scale(1.03); }
+        .stats { display: flex; justify-content: space-around; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; font-weight: bold; }
+        .btn-audio { background: #6c5ce7; color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+        .label { text-align: left; font-size: 0.75rem; font-weight: bold; color: #a2a2a2; text-transform: uppercase; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div style="font-size: 1.2rem; font-weight: bold;">🇰🇷 Trainer v4.0</div>
+        <button class="btn-audio" id="speakBtn">🔊 Ascolta</button>
+    </div>
+
+    <div class="label">Modalità di Gioco</div>
+    <select id="mode">
+        <option value="h2h">Vedi Hangul ➔ Scrivi Hangul</option>
+        <option value="r2h">Vedi Latino ➔ Scrivi Hangul (Sfida!)</option>
+    </select>
+
+    <div class="label">Difficoltà</div>
+    <select id="level">
+        <option value="1">Base: Sillabe CV</option>
+        <option value="2">Intermedio: Batchim</option>
+        <option value="3">Avanzato: Dittonghi/Doppie</option>
+        <option value="4">Parole C1/C2 (Vocabolario)</option>
+        <option value="5">FULL MIX: Tutto Unito!</option>
+    </select>
+
+    <div id="display">--</div>
+    <div id="hint">Inizia a scrivere...</div>
+    
+    <input type="text" id="input" placeholder="..." autocomplete="off">
+    
+    <div class="stats">
+        <span>Punti: <span id="score">0</span></span>
+        <span>Streak: <span id="streak">0</span> 🔥</span>
+    </div>
+</div>
+
+<script>
+    const input = document.getElementById('input');
+    const display = document.getElementById('display');
+    const hint = document.getElementById('hint');
+    const scoreEl = document.getElementById('score');
+    const streakEl = document.getElementById('streak');
+    
+    let targetH = ""; let targetR = "";
+    let score = 0; let streak = 0;
+
+    const db = {
+        doppie: ["ㄲ", "ㄸ", "ㅃ", "ㅆ", "ㅉ"],
+        dittonghi: ["ㅘ", "ㅙ", "ㅚ", "ㅝ", "ㅞ", "ㅟ", "ㅢ"],
+        semplici: ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ", "ㅂ", "ㅅ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"],
+        vocali: ["ㅏ", "ㅑ", "ㅓ", "ㅕ", "ㅗ", "ㅛ", "ㅜ", "ㅠ", "ㅡ", "ㅣ"],
+        vocabolario: [
+            {h:"사과", r:"sagwa"}, {h:"나무", r:"namu"}, {h:"집", r:"jip"}, {h:"민주주의", r:"minjuju-ui"},
+            {h:"정체성", r:"jeongcheseong"}, {h:"불가피하다", r:"bulgapihada"}, {h:"경제", r:"gyeongje"},
+            {h:"예술", r:"yesul"}, {h:"모순", r:"mosun"}, {h:"창의성", r:"chang-uiseong"},
+            {h:"사람", r:"saram"}, {h:"우유", r:"uyu"}, {h:"학생", r:"haksaeng"}
+        ]
+    };
+
+    function genera() {
+        let lv = document.getElementById('level').value;
+        const mode = document.getElementById('mode').value;
+        
+        // Se il livello è 5 (Mix), sceglie un livello a caso tra 1 e 4
+        if (lv == "5") lv = Math.floor(Math.random() * 4) + 1;
+
+        let h = ""; let r = "";
+
+        if (lv == "1") {
+            let i = db.semplici[Math.floor(Math.random()*db.semplici.length)];
+            let v = db.vocali[Math.floor(Math.random()*db.vocali.length)];
+            h = Hangul.assemble([i,v]);
+            r = "Sillaba semplice";
+        } else if (lv == "2") {
+            let i = db.semplici[Math.floor(Math.random()*db.semplici.length)];
+            let v = db.vocali[Math.floor(Math.random()*4)];
+            let f = ["ㄱ","ㄴ","ㄹ","ㅁ","ㅂ"][Math.floor(Math.random()*5)];
+            h = Hangul.assemble([i,v,f]);
+            r = "Sillaba con Batchim";
+        } else if (lv == "3") {
+            let i = [...db.semplici, ...db.doppie][Math.floor(Math.random()*19)];
+            let v = db.dittonghi[Math.floor(Math.random()*db.dittonghi.length)];
+            h = Hangul.assemble([i,v]);
+            r = "Dittongo/Doppia";
+        } else {
+            let word = db.vocabolario[Math.floor(Math.random()*db.vocabolario.length)];
+            h = word.h; r = word.r;
+        }
+
+        targetH = h; targetR = r;
+
+        if (mode === "r2h") {
+            display.innerText = targetR; // Vedi Latino
+            hint.innerText = "Scrivi in Hangul";
+            display.style.fontSize = "35px";
+        } else {
+            display.innerText = targetH; // Vedi Hangul
+            hint.innerText = targetR;
+            display.style.fontSize = "55px";
+        }
+        input.value = "";
+        input.classList.remove('correct');
+    }
+
+    function speak() {
+        const m = new SpeechSynthesisUtterance(targetH);
+        m.lang = 'ko-KR';
+        window.speechSynthesis.speak(m);
+    }
+
+    input.addEventListener('input', () => {
+        // La condizione di vittoria è sempre scrivere l'Hangul corretto
+        if (input.value === targetH) {
+            score += 10; streak++;
+            scoreEl.innerText = score;
+            streakEl.innerText = streak;
+            input.classList.add('correct');
+            speak();
+            setTimeout(genera, 400);
+        }
+    });
+
+    document.getElementById('speakBtn').onclick = speak;
+    document.getElementById('level').onchange = genera;
+    document.getElementById('mode').onchange = genera;
+    genera();
+</script>
+
+</body>
+</html>
