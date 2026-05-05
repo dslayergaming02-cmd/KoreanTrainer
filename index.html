@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Korean Trainer Voice v6.0</title>
+    <script src="https://unpkg.com/hangul-js@0.2.6/hangul.min.js"></script>
+    <style>
+        :root { --primary: #6c5ce7; --success: #00b894; --bg: #f0f2f5; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; touch-action: manipulation; }
+        .container { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); text-align: center; width: 92%; max-width: 420px; }
+        
+        #display { font-size: 65px; font-weight: 800; color: var(--primary); margin: 5px 0; min-height: 80px; }
+        #hint { font-size: 1.4rem; color: #a2a2a2; margin-bottom: 10px; font-weight: 500; }
+        #translation { font-size: 1.8rem; color: var(--success); font-weight: 800; margin-bottom: 15px; min-height: 2.2rem; opacity: 0; }
+        
+        select, input { width: 100%; padding: 15px; margin: 5px 0; border-radius: 15px; border: 2px solid #eee; font-size: 1.1rem; box-sizing: border-box; }
+        input { font-size: 28px; text-align: center; outline: none; background: #fafafa; border: 3px solid #eee; }
+        input.correct { border-color: var(--success) !important; background: #e6fffb !important; }
+        
+        /* Tasto Audio */
+        .audio-control { background: #ffeaa7; padding: 10px; border-radius: 12px; margin-bottom: 15px; cursor: pointer; border: none; font-weight: bold; color: #d63031; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .audio-on { background: #dff9fb; color: #0097e6; }
+
+        .stats { display: flex; justify-content: space-around; margin-top: 15px; font-weight: bold; font-size: 0.9rem; color: #636e72; }
+        .category-tag { font-size: 0.8rem; color: white; background: var(--primary); padding: 4px 12px; border-radius: 20px; text-transform: uppercase; display: inline-block; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <button id="audioInit" class="audio-control">
+        <span>🔇</span> CLICCA QUI PER ATTIVARE L'AUDIO
+    </button>
+
+    <div id="catDisplay" class="category-tag">VOCABOLARIO</div>
+    
+    <select id="level">
+        <option value="words">Vocabolario (200 Parole)</option>
+        <option value="full">Sillabe Mix (Infinite)</option>
+    </select>
+
+    <div id="display">--</div>
+    <div id="hint">--</div>
+    <div id="translation">--</div>
+    
+    <input type="text" id="input" placeholder="Digita in Hangul..." autocomplete="off" spellcheck="false">
+    
+    <div class="stats">
+        <span>PUNTI: <span id="score">0</span></span>
+        <span>STREAK: <span id="streak">0</span> 🔥</span>
+    </div>
+</div>
+
+<script>
+    const input = document.getElementById('input');
+    const display = document.getElementById('display');
+    const hint = document.getElementById('hint');
+    const transDiv = document.getElementById('translation');
+    const catDisplay = document.getElementById('catDisplay');
+    const audioBtn = document.getElementById('audioInit');
+    
+    let targetH = "", score = 0, streak = 0, isLock = false, voiceEnabled = false;
+
+    // Inizializzazione Audio al click
+    audioBtn.addEventListener('click', () => {
+        voiceEnabled = true;
+        audioBtn.innerHTML = "<span>🔊</span> AUDIO ATTIVO";
+        audioBtn.classList.add('audio-on');
+        // Test immediato
+        speakText("안녕하세요"); 
+        setTimeout(() => audioBtn.style.display = 'none', 1000);
+    });
+
+    function speakText(text) {
+        if (!voiceEnabled) return;
+        window.speechSynthesis.cancel(); // Ferma voci precedenti
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ko-KR';
+        msg.rate = 0.8; // Leggermente più lento per capire meglio
+        window.speechSynthesis.speak(msg);
+    }
+
+    const romMap = {"ㄱ":"g","ㄴ":"n","ㄷ":"d","ㄹ":"r","ㅁ":"m","ㅂ":"b","ㅅ":"s","ㅇ":"","ㅈ":"j","ㅊ":"ch","ㅋ":"k","ㅌ":"t","ㅍ":"p","ㅎ":"h","ㄲ":"kk","ㄸ":"tt","ㅃ":"pp","ㅆ":"ss","ㅉ":"jj","ㅏ":"a","ㅑ":"ya","ㅓ":"eo","ㅕ":"yeo","ㅗ":"o","ㅛ":"yo","ㅜ":"u","ㅠ":"yu","ㅡ":"eu","ㅣ":"i","ㅘ":"wa","ㅙ":"wae","ㅚ":"oe","ㅝ":"wo","ㅞ":"we","ㅟ":"wi","ㅢ":"ui","ㅐ":"ae","ㅔ":"e"};
+
+    const vocab = [
+        {h:"사과", r:"sagwa", t:"MELA", c:"CIBO"}, {h:"나무", r:"namu", t:"ALBERO", c:"NATURA"}, {h:"우유", r:"uyu", t:"LATTE", c:"CIBO"},
+        {h:"사람", r:"saram", t:"PERSONA", c:"PERSONE"}, {h:"고양이", r:"goyangi", t:"GATTO", c:"ANIMALI"}, {h:"강아지", r:"gangaji", t:"CANE", c:"ANIMALI"},
+        {h:"물", r:"mul", t:"ACQUA", c:"CIBO"}, {h:"빵", r:"ppang", t:"PANE", c:"CIBO"}, {h:"학교", r:"hakgyo", t:"SCUOLA", c:"LUOGHI"},
+        {h:"집", r:"jip", t:"CASA", c:"LUOGHI"}, {h:"친구", r:"chingu", t:"AMICO", c:"PERSONE"}, {h:"책", r:"chaek", t:"LIBRO", c:"OGGETTI"},
+        {h:"커피", r:"keopi", t:"CAFFÈ", c:"CIBO"}, {h:"가다", r:"gada", t:"ANDARE", c:"VERBI"}, {h:"먹다", r:"meokda", t:"MANGIARE", c:"VERBI"},
+        {h:"사랑", r:"sarang", t:"AMORE", c:"EMOZIONI"}, {h:"오늘", r:"oneul", t:"OGGI", c:"TEMPO"}
+    ];
+
+    const allCons = ["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+    const allVows = ["ㅏ","ㅑ","ㅓ","ㅕ","ㅗ","ㅛ","ㅜ","ㅠ","ㅡ","ㅣ","ㅘ","ㅝ"];
+
+    function genera() {
+        isLock = false;
+        transDiv.style.opacity = "0";
+        input.value = "";
+        input.classList.remove('correct');
+
+        const lv = document.getElementById('level').value;
+        if (lv === "words") {
+            let item = vocab[Math.floor(Math.random() * vocab.length)];
+            targetH = item.h;
+            display.innerText = targetH;
+            hint.innerText = item.r;
+            transDiv.innerText = item.t;
+            catDisplay.innerText = item.c;
+        } else {
+            let c = allCons[Math.floor(Math.random()*allCons.length)];
+            let v = allVows[Math.floor(Math.random()*allVows.length)];
+            targetH = Hangul.assemble([c, v]);
+            display.innerText = targetH;
+            hint.innerText = Hangul.disassemble(targetH).map(p => romMap[p] || p).join("");
+            transDiv.innerText = "SILLABA";
+            catDisplay.innerText = "MIX";
+        }
+        setTimeout(() => input.focus(), 150);
+    }
+
+    input.addEventListener('input', () => {
+        if (isLock) return;
+        let val = input.value.trim();
+        if (val === targetH || Hangul.disassemble(val).join("") === Hangul.disassemble(targetH).join("")) {
+            isLock = true;
+            score += 10; streak++;
+            document.getElementById('score').innerText = score;
+            document.getElementById('streak').innerText = streak;
+            transDiv.style.opacity = "1";
+            input.classList.add('correct');
+            
+            speakText(targetH);
+
+            setTimeout(genera, 1100);
+        }
+    });
+
+    document.getElementById('level').onchange = genera;
+    genera();
+</script>
+</body>
+</html>
