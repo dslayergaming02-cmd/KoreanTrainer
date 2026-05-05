@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Korean Trainer Fix v5.1</title>
+    <script src="https://unpkg.com/hangul-js@0.2.6/hangul.min.js"></script>
+    <style>
+        :root { --primary: #6c5ce7; --success: #00b894; --bg: #f0f2f5; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; overflow: hidden; }
+        .container { background: white; padding: 25px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); text-align: center; width: 95%; max-width: 400px; }
+        #display { font-size: 50px; font-weight: 800; color: var(--primary); margin: 15px 0; min-height: 80px; display: flex; align-items: center; justify-content: center; }
+        #hint { font-size: 1.1rem; color: #b2bec3; margin-bottom: 15px; font-weight: 500; }
+        select, input { width: 100%; padding: 12px; margin: 5px 0; border-radius: 12px; border: 2px solid #eee; font-size: 1rem; box-sizing: border-box; }
+        input { font-size: 24px; text-align: center; outline: none; background: #fafafa; border: 3px solid #eee; -webkit-appearance: none; }
+        input.correct { border-color: var(--success) !important; background: #e6fffb; }
+        .stats { display: flex; justify-content: space-around; margin-top: 15px; font-size: 0.9rem; font-weight: bold; }
+        .label { text-align: left; font-size: 0.65rem; font-weight: bold; color: #a2a2a2; text-transform: uppercase; margin-top: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 10px;">🇰🇷 Trainer v5.1 (Mobile Fix)</div>
+
+    <div class="label">Modalità</div>
+    <select id="mode"><option value="h2h">Vedi Hangul ➔ Scrivi Hangul</option><option value="r2h">Vedi Latino ➔ Scrivi Hangul</option></select>
+
+    <div class="label">Difficoltà</div>
+    <select id="level">
+        <option value="1">Sillabe Semplici</option>
+        <option value="2">Sillabe con Batchim</option>
+        <option value="3">Dittonghi/Doppie</option>
+        <option value="4">Parole Intere</option>
+        <option value="5">FULL MIX</option>
+    </select>
+
+    <div id="display">--</div>
+    <div id="hint">--</div>
+    <input type="text" id="input" placeholder="Scrivi qui..." autocomplete="off" spellcheck="false">
+    
+    <div class="stats">
+        <span>Punti: <span id="score">0</span></span>
+        <span>Streak: <span id="streak">0</span> 🔥</span>
+    </div>
+</div>
+
+<script>
+    const input = document.getElementById('input');
+    const display = document.getElementById('display');
+    const hint = document.getElementById('hint');
+    let targetH = "", targetR = "", score = 0, streak = 0, isProcessing = false;
+
+    const romMap = {
+        "ㄱ":"g", "ㄴ":"n", "ㄷ":"d", "ㄹ":"r", "ㅁ":"m", "ㅂ":"b", "ㅅ":"s", "ㅇ":"", "ㅈ":"j", "ㅊ":"ch", "ㅋ":"k", "ㅌ":"t", "ㅍ":"p", "ㅎ":"h",
+        "ㄲ":"kk", "ㄸ":"tt", "ㅃ":"pp", "ㅆ":"ss", "ㅉ":"jj",
+        "ㅏ":"a", "ㅑ":"ya", "ㅓ":"eo", "ㅕ":"yeo", "ㅗ":"o", "ㅛ":"yo", "ㅜ":"u", "ㅠ":"yu", "ㅡ":"eu", "ㅣ":"i",
+        "ㅘ":"wa", "ㅙ":"wae", "ㅚ":"oe", "ㅝ":"wo", "ㅞ":"we", "ㅟ":"wi", "ㅢ":"ui"
+    };
+
+    const vocab = [
+        {h:"사과", r:"sagwa"}, {h:"나무", r:"namu"}, {h:"집", r:"jip"}, {h:"물", r:"mul"}, 
+        {h:"사람", r:"saram"}, {h:"우유", r:"uyu"}, {h:"경제", r:"gyeongje"}
+    ];
+
+    function getRoman(h) { return Hangul.disassemble(h).map(p => romMap[p] || p).join(""); }
+
+    function genera() {
+        isProcessing = false;
+        let lv = document.getElementById('level').value;
+        const mode = document.getElementById('mode').value;
+        if (lv == "5") lv = Math.floor(Math.random() * 4) + 1;
+
+        if (lv == "1") targetH = Hangul.assemble([["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ"][Math.floor(Math.random()*6)], ["ㅏ","ㅓ","ㅗ","ㅜ","ㅣ"][Math.floor(Math.random()*5)]]);
+        else if (lv == "2") targetH = Hangul.assemble([["ㄱ","ㄴ","ㅁ"][Math.floor(Math.random()*3)], "ㅏ", ["ㄱ","ㄴ","ㄹ"][Math.floor(Math.random()*3)]]);
+        else if (lv == "3") targetH = Hangul.assemble([["ㄲ","ㅃ","ㅆ"][Math.floor(Math.random()*3)], ["ㅘ","ㅚ","ㅝ"][Math.floor(Math.random()*3)]]);
+        else { let item = vocab[Math.floor(Math.random()*vocab.length)]; targetH = item.h; }
+
+        targetR = getRoman(targetH);
+        display.innerText = (mode === "r2h") ? targetR : targetH;
+        hint.innerText = (mode === "r2h") ? "Scrivi in Hangul" : targetR;
+        input.value = "";
+        input.classList.remove('correct');
+        input.focus();
+    }
+
+    input.addEventListener('input', () => {
+        if (isProcessing) return;
+        if (input.value === targetH) {
+            isProcessing = true;
+            score += 10; streak++;
+            document.getElementById('score').innerText = score;
+            document.getElementById('streak').innerText = streak;
+            input.classList.add('correct');
+            
+            // Audio e reset rapido
+            try {
+                const m = new SpeechSynthesisUtterance(targetH);
+                m.lang = 'ko-KR';
+                window.speechSynthesis.speak(m);
+            } catch(e) {}
+
+            setTimeout(genera, 250);
+        }
+    });
+
+    document.getElementById('level').onchange = genera;
+    document.getElementById('mode').onchange = genera;
+    genera();
+</script>
+</body>
+</html>
